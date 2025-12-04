@@ -85,14 +85,14 @@ public partial class OneDriveOutlinkHandler : IOutlinkHandler, IDisposable
                     reqMetadata.Headers.Accept.Add(ApplicationJson);
                     using HttpResponseMessage respMetadata = await Client.SendAsync(reqMetadata, HttpCompletionOption.ResponseContentRead);
                     raw = await respMetadata.Content.ReadAsStringAsync();
-                    driveItem = await respMetadata.Content.ReadFromJsonAsync(SourceGenerationContext.Default.DriveItem);
+                    driveItem = await respMetadata.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.DriveItem);
                 }
                 if (driveItem is not { Name: not null, File: not null })
                 {
                     Console.WriteLine(raw);
                     return;
                 }
-                fileName = driveItem.Name;
+                fileName = Program.FixSpecialExt(driveItem.Name);
                 path = Path.Combine(pageFolderPath, fileName);
                 Array256bit sha256url = new();
                 if (driveItem.File.Hashes.SHA256Hash?.Length is SHA256.HashSizeInBits / 4)

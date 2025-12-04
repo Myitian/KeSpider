@@ -1,18 +1,23 @@
 using KeSpider.API;
-using System.Text;
+using System.Net;
 using System.Text.RegularExpressions;
 
 namespace KeSpider.OutlinkHandlers;
 
-public partial class GoogleDriveOutlinkHandler : IOutlinkHandler
+public partial class MediafireOutlinkHandler : IOutlinkHandler
 {
-    [GeneratedRegex(@"(?<url>https://drive\.google\.com/(?:file/d|drive/folders)/[^""'<>\s]+)")]
-    internal static partial Regex RegGoogleDrive();
 
-    [GeneratedRegex(@"(?<url>https://drive\.google\.com/file/d/(?<id>[^""'<>\s?#/]+))")]
-    internal static partial Regex RegGoogleDriveFile();
-    public static GoogleDriveOutlinkHandler Instance { get; } = new();
-    public Regex Pattern => RegGoogleDrive();
+    [GeneratedRegex(@"(?<url>https://www\.mediafire\.com/(?:\?|file/)[a-zA-Z0-9]+)")]
+    internal static partial Regex RegMediaFire();
+
+    [GeneratedRegex(@"<a\s(?:[^>]*\s)?(?:href=""(?<url>[^""]+)""\s(?:[^>]*\s)?id=""downloadButton""|href=""(?<url>[^""]+)""\s(?:[^>]*\s)?id=""downloadButton"")")]
+    internal static partial Regex RegMediafireFile();
+
+    [GeneratedRegex(@"<div\s(?:[^>]*\s)?class=""filename""\s(?:[^>]*\s)?>(?<name>[^<]+)</div")]
+    internal static partial Regex RegMediafireFileName();
+    public static MediafireOutlinkHandler Instance { get; } = new();
+
+    public Regex Pattern => RegMediaFire();
     public async ValueTask ProcessMatches(
         HttpClient client,
         Dictionary<Array256bit, string> dlCache,
@@ -24,7 +29,6 @@ public partial class GoogleDriveOutlinkHandler : IOutlinkHandler
         HashSet<string> usedLinks,
         params IEnumerable<Match> matches)
     {
-        HashSet<string> gDriveIDs = [];
         foreach (Match m in matches)
         {
             if (!m.Success)
@@ -32,38 +36,25 @@ public partial class GoogleDriveOutlinkHandler : IOutlinkHandler
             string text = m.Groups["url"].Value;
             if (!usedLinks.Add(text))
                 continue;
+            Console.WriteLine($"    @O - Find Outlink of Mediafire: {text}");
             string fileName = Utils.ReplaceInvalidFileNameChars(text) + ".placeholder.txt";
             string path = Path.Combine(pageFolderPath, fileName);
-
-            Console.WriteLine($"    @O - Find Outlink of GoogleDrive: {text}");
-
             if (Program.SavemodeContent == SaveMode.Skip && File.Exists(path))
             {
-                Console.WriteLine($"    @O - Skipped");
+                Console.WriteLine("    @O - Skipped");
                 Utils.SetTime(path, datetime, datetimeEdited);
             }
             else
             {
                 Utils.SaveFile(text, fileName, pageFolderPath, datetime, datetimeEdited, Program.SavemodeOutlink);
-                Match mm = RegGoogleDriveFile().Match(text);
+                string html = await client.GetStringAsync(text);
+                Match mm = RegMediafireFile().Match(html);
                 if (mm.Success)
                 {
-                    string gdid = mm.Groups["id"].Value;
-                    if (gDriveIDs.Contains(gdid))
-                        continue;
-                    string urlDirect = $"https://drive.usercontent.google.com/download?export=download&authuser=0&confirm=t&id={gdid}";
-                    using HttpRequestMessage headReq = new(HttpMethod.Head, urlDirect);
-                    using HttpResponseMessage headResp = await client.SendAsync(headReq);
-                    if (headResp.Content.Headers.ContentDisposition?.FileName is not null)
-                    {
-                        // In this API, GoogleDrive will send filename in "filename" and UTF-8, not Latin-1 or "filename*"
-                        headResp.Content.Headers.ContentDisposition.FileName = Encoding.UTF8.GetString(Encoding.Latin1.GetBytes(headResp.Content.Headers.ContentDisposition.FileName));
-                    }
-                    string? name = headResp.Content.Headers.ContentDisposition?.FileNameStar
-                                ?? headResp.Content.Headers.ContentDisposition?.FileName?.Trim('"')
-                                ?? headResp.RequestMessage?.RequestUri?.AbsolutePath
-                                ?? "file";
-                    name = Program.FixSpecialExt(Path.GetFileName(name));
+                    string urlDirect = WebUtility.UrlDecode(mm.Groups["url"].Value);
+                    string name = RegMediafireFileName().Match(html) is { Success: true } match ?
+                        match.Groups["name"].Value : Path.GetFileName(urlDirect);
+                    name = Program.FixSpecialExt(name);
                     string path2 = Path.Combine(pageFolderPath, name);
                     if (File.Exists(path2))
                     {
@@ -81,7 +72,6 @@ public partial class GoogleDriveOutlinkHandler : IOutlinkHandler
                         if (fi.Extension is ".zip" or ".rar" or ".7z" or ".gz" or ".tar")
                             Program.SevenZipExtract(d, path2);
                     }
-                    gDriveIDs.Add(gdid);
                 }
             }
         }

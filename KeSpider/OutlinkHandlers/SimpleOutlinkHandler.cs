@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace KeSpider.OutlinkHandlers;
 
-public class SimpleOutlinkHandler(string name, Regex pattern) : IOutlinkHandler
+public class SimpleOutlinkHandler(string name, Regex pattern, string? seperator = null) : IOutlinkHandler
 {
     public Regex Pattern => pattern;
     public ValueTask ProcessMatches(
@@ -22,13 +22,13 @@ public class SimpleOutlinkHandler(string name, Regex pattern) : IOutlinkHandler
             if (!m.Success)
                 continue;
             string text = m.Groups["url"].Value;
+            if (m.Groups.ContainsKey("ext"))
+                text += seperator + m.Groups["ext"].Value;
             if (!usedLinks.Add(text))
                 continue;
+            Console.WriteLine($"    @O - Find Outlink of {name}: {text}");
             string fileName = Utils.ReplaceInvalidFileNameChars(text) + ".placeholder.txt";
             string path = Path.Combine(pageFolderPath, fileName);
-
-            Console.WriteLine($"    @O - Find Outlink of ${name}: {text}");
-
             if (Program.SavemodeContent == SaveMode.Skip && File.Exists(path))
             {
                 Console.WriteLine("    @O - Skipped");

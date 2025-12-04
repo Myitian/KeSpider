@@ -80,9 +80,20 @@ class Program
         }
         outlinkHandlers.Add(GoogleDriveOutlinkHandler.Instance);
         outlinkHandlers.Add(OneDriveOutlinkHandler.Instance);
-        outlinkHandlers.Add(BaiduPanOutlinkHandler.Instance);
-        outlinkHandlers.Add(new SimpleOutlinkHandler("Mega", Regexes.RegMega()));
-        outlinkHandlers.Add(new SimpleOutlinkHandler("MediaFire", Regexes.RegMediaFire()));
+        outlinkHandlers.Add(MediafireOutlinkHandler.Instance);
+        outlinkHandlers.Add(new SimpleOutlinkHandler("Mega", Regexes.RegMega(), ""));
+        outlinkHandlers.Add(new SimpleOutlinkHandler("BaiduPan", Regexes.RegBaiduPan(), "?pwd="));
+    }
+
+    public static string FixSpecialExt(string name)
+    {
+        if (!SpecialExtFix)
+            return name;
+        var lookup = SpecialExts.GetAlternateLookup<ReadOnlySpan<char>>();
+        ReadOnlySpan<char> ext = Path.GetExtension(name.AsSpan());
+        if (!lookup.TryGetValue(ext, out string? newExt))
+            return name;
+        return string.Concat(name.AsSpan(0, name.Length - ext.Length), newExt);
     }
 
     public static void Aria2cDownload(string folder, string name, string url, params IEnumerable<string> headers)
@@ -105,7 +116,7 @@ class Program
 
     public static void SevenZipExtract(string folder, string path, string? password = null)
     {
-        ProcessStartInfo _7z = new(aria2cFile, [
+        ProcessStartInfo _7z = new(_7zFile, [
             "x",
             $"-o{folder}",
             .. (password is not null ? Utils.AsEnumerable<string>($"-p{password}") : []),
@@ -117,6 +128,13 @@ class Program
     static readonly Regex rPartXRar = Regexes.RegMultiPartRar();
     static readonly Regex rRxx = Regexes.RegMultiPartRxx();
     static readonly Regex rZxx = Regexes.RegMultiPartZxx();
+
+    public static Dictionary<string, string> SpecialExts = new()
+    {
+        { ".7", ".7z" },
+        { ".zi", ".zip" }
+    };
+    public static bool SpecialExtFix { get; private set; } = true;
 
     public static bool DL_Json { get; private set; } = true;
     public static bool DL_File { get; private set; } = true;
@@ -131,6 +149,9 @@ class Program
 
     static async Task Main()
     {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        Console.InputEncoding = Encoding.UTF8;
+        Console.OutputEncoding = Encoding.UTF8;
         using SocketsHttpHandler handler = new()
         {
             AutomaticDecompression = DecompressionMethods.All,
@@ -195,40 +216,23 @@ class Program
 
     private static Encoding? GetEncoding(string? encName)
     {
-        int? codepage = int.TryParse(encName, out int r) ? r : null;
-        Encoding? encoding = null;
-        do
+        if (int.TryParse(encName, out int codepage))
         {
-            if (codepage is not null)
-                try
-                {
-                    encoding = Encoding.GetEncoding(codepage.Value);
-                    break;
-                }
-                catch { }
-            if (encName is not null)
-                try
-                {
-                    encoding = Encoding.GetEncoding(encName);
-                    break;
-                }
-                catch { }
-            if (codepage is not null)
-                try
-                {
-                    encoding = CodePagesEncodingProvider.Instance.GetEncoding(codepage.Value);
-                    break;
-                }
-                catch { }
-            if (encName is not null)
-                try
-                {
-                    encoding = CodePagesEncodingProvider.Instance.GetEncoding(encName);
-                    break;
-                }
-                catch { }
-        } while (false);
-        return encoding;
+            try
+            {
+                return Encoding.GetEncoding(codepage);
+            }
+            catch { }
+        }
+        if (!string.IsNullOrWhiteSpace(encName))
+        {
+            try
+            {
+                return Encoding.GetEncoding(encName);
+            }
+            catch { }
+        }
+        return null;
     }
 
     private static HashSet<PostInfo> LoadSelectedPosts()
@@ -426,7 +430,7 @@ class Program
                 ReadOnlySpan<char> name = string.IsNullOrEmpty(file.Name) || file.Name.StartsWith("https://www.patreon.com/media-u/", StringComparison.Ordinal)
                     ? Path.GetFileName((ReadOnlySpan<char>)file.Path) : file.Name;
                 string fileNameMain = Utils.ReplaceInvalidFileNameChars(name);
-                string fileName = fileNameMain;
+                string fileName = FixSpecialExt(fileNameMain);
                 string oldName = $"{fid}_{fileName}";
                 string newName = $"{fid++.ToString().PadLeft(3, '0')}_{fileName}";
                 int mLen = 0, num = 0;
@@ -559,11 +563,11 @@ class Program
                             using ZipArchive zip0 = ZipFile.OpenRead(path);
                             Console.WriteLine("    @F - zip! Detecting encoding...");
                             DetectionResult result = zip0.DetectEncoding();
-                            DetectionDetail detected = result.Detected;
+                            DetectionDetail? detected = result.Detected;
                             foreach (DetectionDetail detail in result.Details)
                                 Console.WriteLine($"    @F - zip! CONF:{detail.Confidence} E:{detail.EncodingName}");
                             Encoding u;
-                            switch (detected.EncodingName)
+                            switch (detected?.EncodingName)
                             {
                                 case "utf-8":
                                 case "ascii":

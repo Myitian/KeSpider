@@ -76,7 +76,7 @@ public class PostRoot
             {
                 return (
                     await resp.Content.ReadAsByteArrayAsync(),
-                    await resp.Content.ReadFromJsonAsync(SourceGenerationContext.Default.PostRoot));
+                    await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.PostRoot));
             }
             Console.WriteLine($"HTTP STATUS CODE {resp.StatusCode}");
             Thread.Sleep(1000);

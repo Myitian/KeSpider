@@ -28,7 +28,7 @@ public struct PostsResult
             Console.WriteLine($"GET {url}");
             using HttpResponseMessage resp = await client.GetAsync(url/*, HttpCompletionOption.ResponseHeadersRead*/);
             if (resp.IsSuccessStatusCode)
-                return await resp.Content.ReadFromJsonAsync(SourceGenerationContext.Default.ListPostsResult);
+                return await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.ListPostsResult);
             Console.WriteLine($"HTTP STATUS CODE {resp.StatusCode}");
             Thread.Sleep(1000);
         }
@@ -51,7 +51,7 @@ public struct PostsLegacy
             Console.WriteLine($"GET {url}");
             using HttpResponseMessage resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             if (resp.IsSuccessStatusCode)
-                return await resp.Content.ReadFromJsonAsync(SourceGenerationContext.Default.PostsLegacy);
+                return await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.PostsLegacy);
             Console.WriteLine($"HTTP STATUS CODE {resp.StatusCode}");
             Thread.Sleep(1000);
         }

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="MegaDownloaderXmlGenerator/MegaDownloaderXmlGenerator.csproj" />
+  <Project Path="KeSpider/KeSpider.csproj" />
+</Solution>

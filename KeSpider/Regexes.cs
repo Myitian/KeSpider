@@ -16,11 +16,11 @@ partial class Regexes
     [GeneratedRegex(@"(?<server>(?:https://[^/]+)?)(?<path>/(?:[0-9a-fA-F]{2}/){2}(?<name>[0-9a-fA-F]+\.[0-9A-Za-z]+))")]
     internal static partial Regex RegInlineFile();
 
-    [GeneratedRegex(@"(?<url>https?://mega(?:\.co)?\.nz/[^""'<>\s]+)(?:<[^\>]+>)?(?<hash>#[a-zA-Z0-9\-_]+)")]
+    [GeneratedRegex(@"(?<url>https?://mega(?:\.co)?\.nz/[^""'<>\s]+)(?:<[^\>]+>)?(?<ext>#[a-zA-Z0-9\-_]+)")]
     internal static partial Regex RegMega();
 
-    [GeneratedRegex(@"(?<url>https://www\.mediafire\.com/(?:\?|file/)[a-zA-Z0-9]+)")]
-    internal static partial Regex RegMediaFire();
+    [GeneratedRegex(@"(?<url>https://pan\.baidu\.com/s/[^<>""?]+)(?:[\S\s]*?(?:提取码|p(?:ass)?w(?:or)?d)\s*[：:=]\s*(?<ext>[\dA-Za-z]{4}))?")]
+    internal static partial Regex RegBaiduPan();
 
 
     [GeneratedRegex(@"\.(?<num>\d+)$")]

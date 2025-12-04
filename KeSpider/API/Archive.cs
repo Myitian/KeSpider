@@ -8,7 +8,7 @@ public struct Archive
     [JsonPropertyName("password")]
     public string? Password { get; set; }
 
-    public static async Task<Archive> Request(HttpClient client, string domain, string hash, int retry = 10)
+    public static async Task<Archive> Request(HttpClient client, string domain, string hash, int retry = 3)
     {
         string url = $"https://{domain}/api/v1/file/{hash}";
         while (true)
@@ -16,7 +16,7 @@ public struct Archive
             Console.WriteLine($"GET {url}");
             using HttpResponseMessage resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             if (resp.IsSuccessStatusCode)
-                return await resp.Content.ReadFromJsonAsync(SourceGenerationContext.Default.Archive);
+                return await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.Archive);
             Console.WriteLine($"HTTP STATUS CODE {resp.StatusCode}");
             if (--retry == 0)
                 return new();

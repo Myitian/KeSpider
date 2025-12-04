@@ -7,7 +7,7 @@ namespace KeSpider.ZipEncodingDetector;
 public static class ZipArchiveExtension
 {
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_storedEntryNameBytes")]
-    private static extern byte[] GetStoredEntryNameBytes(this ZipArchiveEntry zipArchiveEntry);
+    private static extern ref byte[] GetStoredEntryNameBytes(this ZipArchiveEntry zipArchiveEntry);
 
     public static DetectionResult DetectEncoding(
         this IEnumerable<ZipArchiveEntry> entries,

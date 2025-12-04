@@ -9,4 +9,4 @@ namespace KeSpider;
 [JsonSerializable(typeof(PostRoot))]
 [JsonSerializable(typeof(PostsLegacy))]
 [JsonSerializable(typeof(OneDriveOutlinkHandler.DriveItem))]
-internal partial class SourceGenerationContext : JsonSerializerContext;
+internal partial class AppJsonSerializerContext : JsonSerializerContext;
