@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Binary;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -52,42 +53,24 @@ partial class Program
             .Select(it => (it.Item1, it.Item2.Value)))
         {
             Console.Error.WriteLine($"Loading {url}...");
-            if (MegaUtils.ExtraerIdKey(url.AsMemory(), out ReadOnlyMemory<char> id, out ReadOnlyMemory<char> key))
+            if (!MegaUtils.ExtraerIdKey(url.AsMemory(), out ReadOnlyMemory<char> id, out ReadOnlyMemory<char> key))
+                Console.Error.WriteLine("Warning: Invalid URL");
+            else
             {
                 if (!folders.TryGetValue(directory, out List<XmlNode>? files))
                     folders[directory] = files = [];
-                if (url.Contains("/folder/"))
+                if (!url.Contains("/folder/"))
+                    files.Add(CreateFileNode(id.Span, key.Span, directory, url));
+                else
                 {
                     foreach ((string fileUrl, string filePath) in await MegaUtils.ResolveFolderAsync(id, key))
                     {
                         Console.Error.WriteLine($"Loading {fileUrl}...");
                         if (!MegaUtils.ExtraerIdKey(fileUrl.AsMemory(), out id, out key))
                             continue;
-                        files.Add(new XmlNode("Fichero")
-                            .AppendAttribute("v", "2")
-                            .AppendChild(new XmlNode("FileID").SetValue(EncryptString(id.Span)))
-                            .AppendChild(new XmlNode("FileKey").SetValue(EncryptString(key.Span)))
-                            .AppendChild(new XmlNode("URL").SetValue(EncryptString(fileUrl)))
-                            .AppendChild(new XmlNode("NombreFichero").SetValue(url))
-                            .AppendChild(new XmlNode("RutaLocal").SetValue(directory))
-                            .AppendChild(new XmlNode("RutaRelativa").SetValue(Path.GetDirectoryName(filePath) ?? "")));
+                        files.Add(CreateFileNode(id.Span, key.Span, directory, fileUrl, Path.GetDirectoryName(filePath)));
                     }
                 }
-                else
-                {
-                    files.Add(new XmlNode("Fichero")
-                        .AppendAttribute("v", "2")
-                        .AppendChild(new XmlNode("FileID").SetValue(EncryptString(id.Span)))
-                        .AppendChild(new XmlNode("FileKey").SetValue(EncryptString(key.Span)))
-                        .AppendChild(new XmlNode("URL").SetValue(EncryptString(url)))
-                        .AppendChild(new XmlNode("NombreFichero").SetValue(url))
-                        .AppendChild(new XmlNode("RutaLocal").SetValue(directory))
-                        .AppendChild(new XmlNode("RutaRelativa").SetValue("")));
-                }
-            }
-            else
-            {
-                Console.Error.WriteLine("Warning: Invalid URL");
             }
         }
         XmlNode root = new("ListaPaquetes");
@@ -107,10 +90,24 @@ partial class Program
             Indent = true
         }))
             root.WriteTo(writer);
-        Console.Error.WriteLine();
-        Console.Error.WriteLine();
-        Console.Error.WriteLine("Done!");
+        Console.Error.WriteLine("""
+
+            
+            Done!
+            """);
         return 0;
+
+        static XmlNode CreateFileNode(ReadOnlySpan<char> id, ReadOnlySpan<char> key, string directory, string url, string? path = null)
+        {
+            return new XmlNode("Fichero")
+                .AppendAttribute("v", "2")
+                .AppendChild(new XmlNode("FileID").SetValue(EncryptString(id)))
+                .AppendChild(new XmlNode("FileKey").SetValue(EncryptString(key)))
+                .AppendChild(new XmlNode("URL").SetValue(EncryptString(url)))
+                .AppendChild(new XmlNode("NombreFichero").SetValue(url))
+                .AppendChild(new XmlNode("RutaLocal").SetValue(directory))
+                .AppendChild(new XmlNode("RutaRelativa").SetValue(path ?? ""));
+        }
     }
     public static string EncryptString(ReadOnlySpan<char> data)
     {
